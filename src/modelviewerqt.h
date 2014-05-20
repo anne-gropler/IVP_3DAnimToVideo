@@ -6,6 +6,7 @@
 #include <osgViewer/Viewer>
 #include "viewerosg/viewerqtcgs.h"
 #include <Qt>
+#include <osg/AnimationPath>
 
 class ModelViewerQt : public QMainWindow
 {
@@ -27,4 +28,9 @@ protected:
     bool m_focusDetectionEnabled;
 	void initializeGeometry();
 	void loadObjectWithAnimation();
+	void loadObjectWithoutAnimation(bool drawBoundingSphereAtSide);
+	void drawBoundingSphere(osg::NodePath &nodepath);
+	void drawBoundingBox(osg::Node* node);
+
+	osg::AnimationPath* createAnimationPathSphere(osg::Vec3f &center, float radius, double looptime, osg::Vec3 &up);
 };
