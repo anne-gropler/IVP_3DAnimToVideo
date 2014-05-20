@@ -46,7 +46,7 @@ ModelViewerQt::ModelViewerQt(QWidget *parent, Qt::WindowFlags flags)
 	
 	//m_viewer->setCameraManipulator(new osgGA::TrackballManipulator()); 
 	m_viewer->getCamera()->setAllowEventFocus(false);
-	//m_viewer->getCamera()->setViewMatrixAsLookAt(osg::Vec3(0,120,0), osg::Vec3(0,0,0), osg::Vec3(0,0,1)); 
+	m_viewer->getCamera()->setViewMatrixAsLookAt(osg::Vec3(0,120,0), osg::Vec3(0,0,0), osg::Vec3(0,0,1)); 
 
 	//The final step is to set up and enter a simulation loop. 
     m_viewer->setSceneData(m_root);
@@ -76,29 +76,47 @@ void ModelViewerQt::enterEvent( QEvent* event )
 void ModelViewerQt::initializeGeometry()
 {
 	m_root = new osg::Group(); 
-	this->loadObjectWithoutAnimation(true);
+	this->loadObjectWithAnimation();
 }
 
 void ModelViewerQt::loadObjectWithAnimation()
 {
-	osg::Node* object = osgDB::readNodeFile("data/inputObjects/untitled.dae");
+	osg::Node* object = osgDB::readNodeFile("data/inputObjects/bigMonkey.dae");
 	
-	osgAnimation::BasicAnimationManager* manager = new osgAnimation::BasicAnimationManager;
-
-	//get animation from object
-	osgAnimation::AnimationManagerBase* animationManager = dynamic_cast<osgAnimation::AnimationManagerBase*>(object->getUpdateCallback());
-	osgAnimation::Animation* anim = animationManager->getAnimationList()[0];
-	anim->setPlayMode(osgAnimation::Animation::LOOP);
-   
 	osg::Group* group = new osg::Group;
-	group->setUpdateCallback(manager);
 	group->addChild(object);
 
-	manager->registerAnimation(anim);
-	manager->buildTargetReference();
-	manager->playAnimation(anim);
+	//get animation from object
+	osgAnimation::BasicAnimationManager* manager = new osgAnimation::BasicAnimationManager;
+	osgAnimation::AnimationManagerBase* animationManager = dynamic_cast<osgAnimation::AnimationManagerBase*>(object->getUpdateCallback());
+	
+	if (animationManager == nullptr)
+	{
+		osg::BoundingSphere sphere = object->computeBound();
+		m_viewer->getCamera()->setViewMatrixAsLookAt(osg::Vec3(0,4*sphere._radius,0), sphere._center, osg::Vec3(0,0,1)); 
 
-	m_root->addChild(group);
+		osg::MatrixTransform* trans = new osg::MatrixTransform();
+
+		osg::AnimationPathCallback* apc = new osg::AnimationPathCallback(createAnimationPathSphere(sphere._center, sphere._radius, 6, osg::Vec3f(0,0,1)), 0, 1);
+		trans->setUpdateCallback(apc);
+		trans->addChild(group);
+		m_root->addChild(trans);
+	}
+	else
+	{	
+		osgAnimation::Animation* anim = animationManager->getAnimationList()[0];
+		anim->setPlayMode(osgAnimation::Animation::LOOP);
+   
+	
+		group->setUpdateCallback(manager);
+		group->addChild(object);
+
+		manager->registerAnimation(anim);
+		manager->buildTargetReference();
+		manager->playAnimation(anim);
+
+		m_root->addChild(group);
+	}
 }
 
 void ModelViewerQt::loadObjectWithoutAnimation(bool drawBoundingSphereAtSide)
