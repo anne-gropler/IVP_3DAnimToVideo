@@ -22,8 +22,9 @@ protected slots:
 
 protected:
     Ui::QtModelViewerClass ui;
-    VIEWEROSG::ViewerQTCgs* m_viewer;
-    osg::ref_ptr<osg::Group> m_root;
+    //VIEWEROSG::ViewerQTCgs* m_viewer;
+    osgViewer::Viewer* m_viewer;
+	osg::ref_ptr<osg::Group> m_root;
 
     bool m_focusDetectionEnabled;
 	void initializeGeometry();

@@ -35,8 +35,9 @@ ModelViewerQt::ModelViewerQt(QWidget *parent, Qt::WindowFlags flags)
     osg::DisplaySettings::instance()->setNumMultiSamples(8);
     osg::DisplaySettings::instance()->setDoubleBuffer(true);
 
-    m_viewer = new VIEWEROSG::ViewerQTCgs(this);
-    this->setCentralWidget(m_viewer);
+    //m_viewer = new VIEWEROSG::ViewerQTCgs(this);
+	m_viewer = new osgViewer::Viewer();
+    //this->setCentralWidget(m_viewer);
 
 	this->initializeGeometry();
 	
@@ -45,11 +46,20 @@ ModelViewerQt::ModelViewerQt(QWidget *parent, Qt::WindowFlags flags)
     //m_root->getOrCreateStateSet()->setMode(GL_LIGHTING, osg::StateAttribute::OFF); 
 	
 	//m_viewer->setCameraManipulator(new osgGA::TrackballManipulator()); 
-	m_viewer->getCamera()->setAllowEventFocus(false);
-	m_viewer->getCamera()->setViewMatrixAsLookAt(osg::Vec3(0,120,0), osg::Vec3(0,0,0), osg::Vec3(0,0,1)); 
+	//m_viewer->getCamera()->setAllowEventFocus(false);
+	//m_viewer->getCamera()->setViewMatrixAsLookAt(osg::Vec3(0,120,0), osg::Vec3(0,0,0), osg::Vec3(0,0,1)); 
 
 	//The final step is to set up and enter a simulation loop. 
     m_viewer->setSceneData(m_root);
+
+	m_viewer->setUpViewInWindow(100, 100, 500, 500);
+    //m_viewer->setCameraManipulator(new osgGA::TrackballManipulator()); 
+    m_viewer->realize(); 
+    while( !m_viewer->done() ) 
+    { 
+        m_viewer->frame(); 
+    } 
+
 	
 }
 
@@ -61,7 +71,7 @@ void ModelViewerQt::leaveEvent( QEvent* event )
 {
     if(m_focusDetectionEnabled)
     {
-        m_viewer->setInFocus(false);
+        //m_viewer->setInFocus(false);
     }
 }
 
@@ -69,7 +79,7 @@ void ModelViewerQt::enterEvent( QEvent* event )
 {
     if(m_focusDetectionEnabled)
     {
-        m_viewer->setInFocus(true);
+        //m_viewer->setInFocus(true);
     }
 }
 
@@ -93,7 +103,7 @@ void ModelViewerQt::loadObjectWithAnimation()
 	if (animationManager == nullptr)
 	{
 		osg::BoundingSphere sphere = object->computeBound();
-		m_viewer->getCamera()->setViewMatrixAsLookAt(osg::Vec3(0,4*sphere._radius,0), sphere._center, osg::Vec3(0,0,1)); 
+		//m_viewer->getCamera()->setViewMatrixAsLookAt(osg::Vec3(0,4*sphere._radius,0), sphere._center, osg::Vec3(0,0,1)); 
 
 		osg::MatrixTransform* trans = new osg::MatrixTransform();
 
@@ -140,7 +150,7 @@ void ModelViewerQt::loadObjectWithoutAnimation(bool drawBoundingSphereAtSide)
 		unitSphereGeode->addDrawable(sphereDrawable);
 	}
 
-	m_viewer->getCamera()->setViewMatrixAsLookAt(osg::Vec3(0,4*sphere._radius,0), sphere._center, osg::Vec3(0,0,1)); 
+	//m_viewer->getCamera()->setViewMatrixAsLookAt(osg::Vec3(0,4*sphere._radius,0), sphere._center, osg::Vec3(0,0,1)); 
 
 	osg::MatrixTransform* trans = new osg::MatrixTransform();
 
