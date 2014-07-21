@@ -11,7 +11,6 @@
 
     <script id="shader-fs" type="x-shader/x-fragment">
         varying highp vec2 vTextureCoord;
-        //varying highp vec3 vLighting;
         varying highp vec3 vVertexMV;
         
         uniform sampler2D uSampler;
@@ -70,16 +69,13 @@
     <!-- Vertex shader program -->
     
     <script id="shader-vs" type="x-shader/x-vertex">
-      attribute highp vec3 aVertexNormal;
       attribute highp vec3 aVertexPosition;
       attribute highp vec2 aTextureCoord;
     
-      uniform highp mat4 uNormalMatrix;
       uniform highp mat4 uMVMatrix;
       uniform highp mat4 uPMatrix;
       
       varying highp vec2 vTextureCoord;
-      //varying highp vec3 vLighting;
       varying highp vec3 vVertexMV;
     
       void main(void) {

@@ -2,11 +2,13 @@ var canvas;
 var gl;
 var intervalID;
 
+var number; //performance
+
 var verticesBuffer;
 var verticesTextureCoordBuffer;
 var verticesIndexBuffer;
 
-
+var numberOfVideosLoaded
 var originalTexture;
 var normalsTexture;
 var depthTexture;
@@ -18,7 +20,6 @@ var version;
 var mvMatrix;
 var shaderProgram;
 var vertexPositionAttribute;
-var vertexNormalAttribute;
 var textureCoordAttribute;
 var perspectiveMatrix;
 
@@ -32,6 +33,9 @@ var videoDepthElement;
 // Called when the canvas is created to get the ball rolling.
 //
 function start() {
+  number = 0;
+  numberOfVideosLoaded = 0;
+    
   canvas = document.getElementById("glcanvas");
   
   var slideX = document.getElementById('slideX');  
@@ -110,6 +114,11 @@ function start() {
         }
         gl.uniform1i(gl.getUniformLocation(shaderProgram, "uVersion"), version);
     };
+    
+    setInterval(function(){
+        console.log(number);
+        number=0;
+    }, 1000);
   }
 }
 
@@ -166,21 +175,6 @@ function initBuffers() {
   
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
 
-  // Set up the normals for the vertices, so that we can compute lighting.
-  
-  verticesNormalBuffer = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, verticesNormalBuffer);
-  
-  var vertexNormals = [
-     0.0,  0.0,  1.0,
-     0.0,  0.0,  1.0,
-     0.0,  0.0,  1.0,
-     0.0,  0.0,  1.0
-  ];
-  
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertexNormals),
-                gl.STATIC_DRAW);
-  
   // Map the texture onto the face.
   
   verticesTextureCoordBuffer = gl.createBuffer();
@@ -277,11 +271,18 @@ function updateTexture() {
 // as our texture.
 //
 function startVideo() {
-  videoElement.play();
-  videoNormalsElement.play();
-  videoDepthElement.play();
+  numberOfVideosLoaded++;
   
-  intervalID = setInterval(drawScene, 15);
+  if (numberOfVideosLoaded===3){
+    videoElement.play();
+    videoNormalsElement.play();
+    videoDepthElement.play();
+  
+    console.log("PON DE REPLAY");
+  
+    intervalID = setInterval(drawScene, 15);
+    //numberOfVideosLoaded = 0;
+  }
 }
 
 //
@@ -291,7 +292,7 @@ function startVideo() {
 // the animation.
 //
 function videoDone() {
-  clearInterval(intervalID);
+    clearInterval(intervalID);
 }
 
 //
@@ -301,7 +302,7 @@ function videoDone() {
 //
 function drawScene() {
   updateTexture();
-  
+  number = number+1;
   // Clear the canvas before we start drawing on it.
 
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -336,11 +337,6 @@ function drawScene() {
   
   gl.bindBuffer(gl.ARRAY_BUFFER, verticesTextureCoordBuffer);
   gl.vertexAttribPointer(textureCoordAttribute, 2, gl.FLOAT, false, 0, 0);
-  
-  // Bind the normals buffer to the shader attribute.
-  
-  gl.bindBuffer(gl.ARRAY_BUFFER, verticesNormalBuffer);
-  gl.vertexAttribPointer(vertexNormalAttribute, 3, gl.FLOAT, false, 0, 0);
   
   // Specify the texture to map onto the faces.
   
@@ -395,9 +391,6 @@ function initShaders() {
   
   textureCoordAttribute = gl.getAttribLocation(shaderProgram, "aTextureCoord");
   gl.enableVertexAttribArray(textureCoordAttribute);
-  
-  vertexNormalAttribute = gl.getAttribLocation(shaderProgram, "aVertexNormal");
-  gl.enableVertexAttribArray(vertexNormalAttribute);
 }
 
 //
@@ -482,11 +475,6 @@ function setMatrixUniforms() {
 
   var mvUniform = gl.getUniformLocation(shaderProgram, "uMVMatrix");
   gl.uniformMatrix4fv(mvUniform, false, new Float32Array(mvMatrix.flatten()));
-  
-  var normalMatrix = mvMatrix.inverse();
-  normalMatrix = normalMatrix.transpose();
-  var nUniform = gl.getUniformLocation(shaderProgram, "uNormalMatrix");
-  gl.uniformMatrix4fv(nUniform, false, new Float32Array(normalMatrix.flatten()));
 }
 
 var mvMatrixStack = [];
