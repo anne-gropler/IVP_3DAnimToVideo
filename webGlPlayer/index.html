@@ -10,20 +10,61 @@
     <!-- Fragment shader program -->
 
     <script id="shader-fs" type="x-shader/x-fragment">
-      varying highp vec2 vTextureCoord;
-      varying highp vec3 vLighting;
-      
-      uniform sampler2D uSampler;
-      uniform sampler2D uSamplerNormals;
-      
-      void main(void) {
-        highp vec4 texelColor = texture2D(uSampler, vec2(vTextureCoord.s, vTextureCoord.t));
-        highp vec4 texelNormal = texture2D(uSamplerNormals, vec2(vTextureCoord.s, vTextureCoord.t));
-        highp float red = texelNormal.r;
+        varying highp vec2 vTextureCoord;
+        //varying highp vec3 vLighting;
+        varying highp vec3 vVertexMV;
         
-        highp vec3 finalColor = vec3(red, texelColor.gb);
-        gl_FragColor = vec4(finalColor * vLighting, 1.0);
-      }
+        uniform sampler2D uSampler;
+        uniform sampler2D uSamplerNormals;
+        uniform sampler2D uSamplerDepth;
+        uniform mediump int uVersion;
+        uniform mediump float uLightPositionX;
+        
+        void main(void) {
+          highp vec3 texelColor = texture2D(uSampler, vec2(vTextureCoord.s, vTextureCoord.t)).rgb;
+          highp vec3 texelNormal = texture2D(uSamplerNormals, vec2(vTextureCoord.s, vTextureCoord.t)).rgb;
+          
+          mediump float stencil = texelNormal.r+texelNormal.g+texelNormal.b;
+          stencil = step(0.5, stencil);
+          
+          highp float x = (texelNormal.r - 0.5)*2.0;
+          highp float y = (texelNormal.g - 0.5)*2.0;
+          highp float z = (texelNormal.b - 0.5)*2.0;
+          
+          texelNormal = normalize(vec3(x, y, z));
+          highp float texelDepth = 1.0 - texture2D(uSamplerDepth, vec2(vTextureCoord.s, vTextureCoord.t)).r;
+          //highp vec3 vertexPosition = vec3(vVertexMV.x, vVertexMV.y, texelDepth);
+          highp vec3 vertexPosition = vec3(vVertexMV.x, vVertexMV.y, texelDepth*5.0-10.0);
+          
+          if (uVersion==0){ //q
+            gl_FragColor = vec4(texelColor, 1.0)*stencil;
+          }
+          else if (uVersion==1){ //w
+            gl_FragColor = vec4(texelNormal, 1.0)*stencil;
+          }
+          else if (uVersion==2){ //e
+            gl_FragColor = vec4(vec3(texelDepth), 1.0)*stencil;
+          }
+          else{//r
+            highp vec3 L = normalize(vec3(uLightPositionX, 0.0, 10.0) - vertexPosition); //Light Source Position
+            highp vec3 E = normalize(-vertexPosition); // we are in Eye Coordinates, so EyePos is (0,0,0)  
+            highp vec3 R = normalize(reflect(-L,texelNormal));  
+
+            //calculate Ambient Term:  
+            highp vec4 Iamb = vec4(0.1, 0.1, 0.1, 1.0); //Color for Ambient Light
+
+            //calculate Diffuse Term:  
+            highp vec4 Idiff = vec4(0.8, 1.0, 0.5, 1.0) * max(dot(texelNormal,L), 0.0); //Color for Diffuse Light
+            Idiff = clamp(Idiff, 0.0, 1.0);     
+
+            // calculate Specular Term:
+            highp vec4 Ispec = vec4(0.7, 0.7, 0.0, 1.0) * pow(max(dot(R,E),0.0), 10.0); //Color for Specular Light; shininess
+            Ispec = clamp(Ispec, 0.0, 1.0); 
+
+            // write Total Color:  
+            gl_FragColor = (vec4(texelColor, 1.0)*(Ispec +Idiff + Iamb))*stencil;
+            }
+        }
     </script>
     
     <!-- Vertex shader program -->
@@ -38,22 +79,13 @@
       uniform highp mat4 uPMatrix;
       
       varying highp vec2 vTextureCoord;
-      varying highp vec3 vLighting;
+      //varying highp vec3 vLighting;
+      varying highp vec3 vVertexMV;
     
       void main(void) {
+        vVertexMV = vec4(uMVMatrix * vec4(aVertexPosition, 1.0)).xyz;
         gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
         vTextureCoord = aTextureCoord;
-        
-        // Apply lighting effect
-        
-        highp vec3 ambientLight = vec3(0.6, 0.6, 0.6);
-        highp vec3 directionalLightColor = vec3(0.5, 0.5, 0.75);
-        highp vec3 directionalVector = vec3(0.85, 0.8, 0.75);
-        
-        highp vec4 transformedNormal = uNormalMatrix * vec4(aVertexNormal, 1.0);
-        
-        highp float directional = max(dot(transformedNormal.xyz, directionalVector), 0.0);
-        vLighting = ambientLight + (directionalLightColor * directional);
       }
     </script>
   </head>
@@ -62,11 +94,16 @@
     <canvas id="glcanvas" width="600" height="600">
       Your browser doesn't appear to support the HTML5 <code>&lt;canvas&gt;</code> element.
     </canvas>
-    <video id="video" controls loop>
+    <video id="video" loop>
       Your browser doesn't appear to support the HTML5 <code>&lt;video&gt;</code> element.
     </video>
-    <video id="videoNormals" controls loop>
+    <video id="videoNormals" loop>
       Your browser doesn't appear to support the HTML5 <code>&lt;video&gt;</code> element.
     </video>
+    <video id="videoDepth" loop>
+      Your browser doesn't appear to support the HTML5 <code>&lt;video&gt;</code> element.
+    </video>
+    <input id="slideX" type="range" min="-70" max="70" step="1" value="0">
+    <div id="sliderAmount"></div>
   </body>
 </html>

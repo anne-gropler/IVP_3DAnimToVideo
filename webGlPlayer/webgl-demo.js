@@ -9,6 +9,11 @@ var verticesIndexBuffer;
 
 var originalTexture;
 var normalsTexture;
+var depthTexture;
+
+var lightPositionX;
+
+var version;
 
 var mvMatrix;
 var shaderProgram;
@@ -19,6 +24,7 @@ var perspectiveMatrix;
 
 var videoElement;
 var videoNormalsElement;
+var videoDepthElement;
 
 //
 // start
@@ -28,8 +34,15 @@ var videoNormalsElement;
 function start() {
   canvas = document.getElementById("glcanvas");
   
+  var slideX = document.getElementById('slideX');  
+  slideX.onchange = function(){
+        lightPositionX = this.value;
+        gl.uniform1f(gl.getUniformLocation(shaderProgram, "uLightPositionX"), lightPositionX);
+  };
+  
   videoElement = document.getElementById("video");
   videoNormalsElement = document.getElementById("videoNormals");
+  videoDepthElement = document.getElementById("videoDepth");
 
   initWebGL(canvas);      // Initialize the GL context
   
@@ -60,17 +73,43 @@ function start() {
     
     videoElement.addEventListener("canplaythrough", startVideo, true);
     videoNormalsElement.addEventListener("canplaythrough", startVideo, true);
+    videoDepthElement.addEventListener("canplaythrough", startVideo, true);
     
     // Start listening for the ended event, so we can stop the
     // animation when the video is finished playing.
     
     videoElement.addEventListener("ended", videoDone, true);
     videoNormalsElement.addEventListener("ended", videoDone, true);
+    videoDepthElement.addEventListener("ended", videoDone, true);
 
     video.preload = "auto";
-    videoElement.src = "Firefox.ogv";
+    videoElement.src = "presentation_color.ogv";
     videoNormals.preload = "auto";
-    videoNormalsElement.src = "FirefoxNormals.ogv";
+    videoNormalsElement.src = "presentation_normals.ogv";
+    videoDepth.preload = "auto";
+    videoDepthElement.src = "presentation_depth.ogv";
+    
+    version = 0;
+    
+    window.onkeyup = function(e) {
+        var key = e.keyCode ? e.keyCode : e.which;
+        
+        switch (key) {
+            case 81: //q
+                version = 0;
+                break;
+            case 87: //w
+                version = 1;
+                break;
+            case 69: //e
+                version = 2;
+                break;
+            case 82: //r
+                version = 3;
+                break;
+        }
+        gl.uniform1i(gl.getUniformLocation(shaderProgram, "uVersion"), version);
+    };
   }
 }
 
@@ -84,7 +123,7 @@ function initWebGL() {
   gl = null;
   
   try {
-    gl = canvas.getContext("experimental-webgl");
+    gl = canvas.getContext("experimental-webgl") || canvas.getContext("webgl");
   }
   catch(e) {
   }
@@ -115,10 +154,10 @@ function initBuffers() {
   // Now create an array of vertices
   
   var vertices = [
-    -1.0, -1.0,  1.0,
-     1.0, -1.0,  1.0,    
-     1.0,  1.0,  1.0,
-    -1.0,  1.0,  1.0
+    -3.0, -3.0,  -1.5,
+     3.0, -3.0,  -1.5,    
+     3.0,  3.0,  -1.5,
+    -3.0,  3.0,  -1.5
   ];
   
   // Now pass the list of vertices into WebGL to build the shape. We
@@ -186,7 +225,27 @@ function initBuffers() {
 //
 function initTextures() {
   originalTexture = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, originalTexture);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  
   normalsTexture = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, normalsTexture);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  
+  depthTexture = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, depthTexture);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  
+  gl.bindTexture(gl.TEXTURE_2D, null);
 }
 
 //
@@ -198,22 +257,16 @@ function initTextures() {
 function updateTexture() {
   gl.bindTexture(gl.TEXTURE_2D, originalTexture);
   gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA,
-        gl.UNSIGNED_BYTE, videoElement);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-  gl.bindTexture(gl.TEXTURE_2D, null);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, videoElement);
   
   gl.bindTexture(gl.TEXTURE_2D, normalsTexture);
   gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA,
-        gl.UNSIGNED_BYTE, videoNormalsElement);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, videoNormalsElement);
+  
+  gl.bindTexture(gl.TEXTURE_2D, depthTexture);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, videoDepthElement);
+  
   gl.bindTexture(gl.TEXTURE_2D, null);
 }
 
@@ -226,6 +279,8 @@ function updateTexture() {
 function startVideo() {
   videoElement.play();
   videoNormalsElement.play();
+  videoDepthElement.play();
+  
   intervalID = setInterval(drawScene, 15);
 }
 
@@ -253,7 +308,7 @@ function drawScene() {
   
   // Establish the perspective with which we want to view the
   // scene. Our field of view is 45 degrees, with a width/height
-  // ratio of 700:700, and we only want to see objects between 0.1 units
+  // ratio of 600:600, and we only want to see objects between 0.1 units
   // and 100 units away from the camera.
   
   perspectiveMatrix = makePerspective(45, 600.0/600.0, 0.1, 100.0);
@@ -295,6 +350,9 @@ function drawScene() {
   gl.activeTexture(gl.TEXTURE1);
   gl.bindTexture(gl.TEXTURE_2D, normalsTexture);
   gl.uniform1i(gl.getUniformLocation(shaderProgram, "uSamplerNormals"), 1);
+  gl.activeTexture(gl.TEXTURE2);
+  gl.bindTexture(gl.TEXTURE_2D, depthTexture);
+  gl.uniform1i(gl.getUniformLocation(shaderProgram, "uSamplerDepth"), 2);
   
   // Draw.
   
