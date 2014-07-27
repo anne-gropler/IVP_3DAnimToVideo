@@ -8,7 +8,7 @@ var verticesBuffer;
 var verticesTextureCoordBuffer;
 var verticesIndexBuffer;
 
-var numberOfVideosLoaded
+var numberOfVideosLoaded;
 var originalTexture;
 var normalsTexture;
 var depthTexture;
@@ -27,8 +27,6 @@ var videoElement;
 var videoNormalsElement;
 var videoDepthElement;
 
-//
-// start
 //
 // Called when the canvas is created to get the ball rolling.
 //
@@ -87,11 +85,14 @@ function start() {
     videoDepthElement.addEventListener("ended", videoDone, true);
 
     video.preload = "auto";
-    videoElement.src = "presentation_color.ogv";
+    videoElement.src = "presentation_color_small.ogv";
+    videoElement.crossOrigin = "anonymous";
     videoNormals.preload = "auto";
-    videoNormalsElement.src = "presentation_normals.ogv";
+    videoNormalsElement.src = "presentation_normals_small.ogv";
+    videoNormalsElement.crossOrigin = "anonymous";
     videoDepth.preload = "auto";
-    videoDepthElement.src = "presentation_depth.ogv";
+    videoDepthElement.src = "presentation_depth_small.ogv";
+    videoDepthElement.crossOrigin = "anonymous";
     
     version = 0;
     
@@ -116,7 +117,7 @@ function start() {
     };
     
     setInterval(function(){
-        console.log(number);
+        console.log("Framerate: " + number);
         number=0;
     }, 1000);
   }
@@ -140,7 +141,7 @@ function initWebGL() {
   // If we don't have a GL context, give up now
   
   if (!gl) {
-    alert("Unable to initialize WebGL. Your browser may not support it.");
+    alert("Unable to initialize WebGL. This Webbrowser possibly does not support it.");
   }
 }
 
@@ -265,33 +266,28 @@ function updateTexture() {
 }
 
 //
-// startVideo
-//
 // Starts playing the video, so that it will start being used
 // as our texture.
 //
 function startVideo() {
   numberOfVideosLoaded++;
-  
+    
   if (numberOfVideosLoaded===3){
     videoElement.play();
     videoNormalsElement.play();
     videoDepthElement.play();
-  
-    console.log("PON DE REPLAY");
-  
+
     intervalID = setInterval(drawScene, 15);
     //numberOfVideosLoaded = 0;
   }
 }
 
-//
-// videoDone
-//
 // Called when the video is done playing; this will terminate
 // the animation.
 //
 function videoDone() {
+    //unreached!
+    //problem: chrome doesn't loop...
     clearInterval(intervalID);
 }
 
@@ -415,7 +411,7 @@ function getShader(gl, id) {
   var currentChild = shaderScript.firstChild;
   
   while(currentChild) {
-    if (currentChild.nodeType == 3) {
+    if (currentChild.nodeType === 3) {
       theSource += currentChild.textContent;
     }
     
@@ -427,9 +423,9 @@ function getShader(gl, id) {
   
   var shader;
   
-  if (shaderScript.type == "x-shader/x-fragment") {
+  if (shaderScript.type === "x-shader/x-fragment") {
     shader = gl.createShader(gl.FRAGMENT_SHADER);
-  } else if (shaderScript.type == "x-shader/x-vertex") {
+  } else if (shaderScript.type === "x-shader/x-vertex") {
     shader = gl.createShader(gl.VERTEX_SHADER);
   } else {
     return null;  // Unknown shader type
@@ -503,3 +499,24 @@ function mvRotate(angle, v) {
   var m = Matrix.Rotation(inRadians, $V([v[0], v[1], v[2]])).ensure4x4();
   multMatrix(m);
 }
+
+function videoLoadFailed(e) {
+   // video playback failed - show a message saying why
+   switch (e.target.error.code) {
+     case e.target.error.MEDIA_ERR_ABORTED:
+       alert('You aborted the video playback.');
+       break;
+     case e.target.error.MEDIA_ERR_NETWORK:
+       alert('A network error caused the video download to fail part-way.');
+       break;
+     case e.target.error.MEDIA_ERR_DECODE:
+       alert('The video playback was aborted due to a corruption problem or because the video used features your browser did not support.');
+       break;
+     case e.target.error.MEDIA_ERR_SRC_NOT_SUPPORTED:
+       alert('The video could not be loaded, either because the server or network failed or because the format is not supported.\nHints: Before changing video format, try a smaller filesize. When using Chrome and loading video locally, make sure to start it with --disable-web-security.');
+       break;
+     default:
+       alert('An unknown error occurred.');
+       break;
+   }
+ }

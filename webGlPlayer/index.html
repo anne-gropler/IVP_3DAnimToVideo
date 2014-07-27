@@ -90,13 +90,13 @@
     <canvas id="glcanvas" width="600" height="600">
       Your browser doesn't appear to support the HTML5 <code>&lt;canvas&gt;</code> element.
     </canvas>
-    <video id="video" loop>
+    <video id="video" loop onerror="videoLoadFailed(event)">
       Your browser doesn't appear to support the HTML5 <code>&lt;video&gt;</code> element.
     </video>
-    <video id="videoNormals" loop>
+    <video id="videoNormals" loop onerror="videoLoadFailed(event)">
       Your browser doesn't appear to support the HTML5 <code>&lt;video&gt;</code> element.
     </video>
-    <video id="videoDepth" loop>
+    <video id="videoDepth" loop onerror="videoLoadFailed(event)">
       Your browser doesn't appear to support the HTML5 <code>&lt;video&gt;</code> element.
     </video>
     <input id="slideX" type="range" min="-70" max="70" step="1" value="0">
