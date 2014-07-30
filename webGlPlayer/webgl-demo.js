@@ -2,7 +2,7 @@ var canvas;
 var gl;
 var intervalID;
 
-var number; //performance
+var framesPerSecond;
 
 var verticesBuffer;
 var verticesTextureCoordBuffer;
@@ -15,7 +15,7 @@ var depthTexture;
 
 var lightPositionX;
 
-var version;
+var layer;
 
 var mvMatrix;
 var shaderProgram;
@@ -27,63 +27,63 @@ var videoElement;
 var videoNormalsElement;
 var videoDepthElement;
 
-//
-// Called when the canvas is created to get the ball rolling.
-//
-function start() {
-  number = 0;
+
+/**
+ * Called when the canvas is created
+ */
+function start()
+{
+  framesPerSecond = 0;
   numberOfVideosLoaded = 0;
     
   canvas = document.getElementById("glcanvas");
   
+  //Slider to update the x-position of the light
   var slideX = document.getElementById('slideX');  
-  slideX.onchange = function(){
+  slideX.onchange = function()
+  {
         lightPositionX = this.value;
         gl.uniform1f(gl.getUniformLocation(shaderProgram, "uLightPositionX"), lightPositionX);
   };
   
+  //Get the HTML5 video element
   videoElement = document.getElementById("video");
   videoNormalsElement = document.getElementById("videoNormals");
   videoDepthElement = document.getElementById("videoDepth");
 
-  initWebGL(canvas);      // Initialize the GL context
+  //Initialize the GL context and set the variable gl
+  initWebGL();
   
-  // Only continue if WebGL is available and working
-  
-  if (gl) {
-    gl.clearColor(0.0, 0.0, 0.0, 1.0);  // Clear to black, fully opaque
-    gl.clearDepth(1.0);                 // Clear everything
-    gl.enable(gl.DEPTH_TEST);           // Enable depth testing
-    gl.depthFunc(gl.LEQUAL);            // Near things obscure far things
-    
-    // Initialize the shaders; this is where all the lighting for the
-    // vertices and so forth is established.
+  if (gl)
+  {
+    //WebGL is available
+    gl.clearColor(0.0, 0.0, 0.0, 1.0);  //Clear to black, fully opaque
+    gl.clearDepth(1.0);                 //Clear everything
+    gl.enable(gl.DEPTH_TEST);           //Enable depth testing
+    gl.depthFunc(gl.LEQUAL);            //Near things obscure far things
     
     initShaders();
-    
-    // Here's where we call the routine that builds all the objects
-    // we'll be drawing.
-    
+
     initBuffers();
-    
-    // Next, load and set up the textures we'll be using.
     
     initTextures();
 
-    // Start listening for the canplaythrough event, so we don't
-    // start playing the video until we can do so without stuttering
-    
+    //Start listening for the canplaythrough-event, so we don't
+    //start playing the video until we can do so without stuttering
     videoElement.addEventListener("canplaythrough", startVideo, true);
     videoNormalsElement.addEventListener("canplaythrough", startVideo, true);
     videoDepthElement.addEventListener("canplaythrough", startVideo, true);
     
-    // Start listening for the ended event, so we can stop the
-    // animation when the video is finished playing.
-    
+    //Start listening for the ended-event, so we can stop the
+    //animation when the video is finished playing.
+    //It is just pro forma because the video should loop
+    //Chrome doesn't loop, but doesn't fire the ended-event neither
     videoElement.addEventListener("ended", videoDone, true);
     videoNormalsElement.addEventListener("ended", videoDone, true);
     videoDepthElement.addEventListener("ended", videoDone, true);
 
+    //Video sources are loaded when the page loads
+    //CrossOrigin anonymous so that we can open index.html without netbeans
     video.preload = "auto";
     videoElement.src = "presentation_color_small.ogv";
     videoElement.crossOrigin = "anonymous";
@@ -94,75 +94,72 @@ function start() {
     videoDepthElement.src = "presentation_depth_small.ogv";
     videoDepthElement.crossOrigin = "anonymous";
     
-    version = 0;
+    //Which layer of the video is shown
+    layer = 0;
     
-    window.onkeyup = function(e) {
+    window.onkeyup = function(e)
+    {
         var key = e.keyCode ? e.keyCode : e.which;
         
-        switch (key) {
+        switch (key)
+        {
             case 81: //q
-                version = 0;
+                layer = 0; //color-layer
                 break;
             case 87: //w
-                version = 1;
+                layer = 1; //normals-layer
                 break;
             case 69: //e
-                version = 2;
+                layer = 2; //depth-layer
                 break;
             case 82: //r
-                version = 3;
+                layer = 3; //post-processing (shading)
                 break;
         }
-        gl.uniform1i(gl.getUniformLocation(shaderProgram, "uVersion"), version);
+        gl.uniform1i(gl.getUniformLocation(shaderProgram, "uLayer"), layer);
     };
     
-    setInterval(function(){
-        console.log("Framerate: " + number);
-        number=0;
+    //Debugging: print framerate console every second
+    setInterval(function()
+    {
+        console.log("Framerate: " + framesPerSecond);
+        framesPerSecond=0;
     }, 1000);
   }
 }
 
-//
-// initWebGL
-//
-// Initialize WebGL, returning the GL context or null if
-// WebGL isn't available or could not be initialized.
-//
-function initWebGL() {
+/** Initialize WebGL, setting gl as the GL context
+ * or null if WebGL isn't available or could not be initialized.
+ */
+function initWebGL()
+{
   gl = null;
   
-  try {
+  try
+  {
     gl = canvas.getContext("experimental-webgl") || canvas.getContext("webgl");
   }
-  catch(e) {
+  catch(e)
+  {
   }
-  
-  // If we don't have a GL context, give up now
-  
-  if (!gl) {
-    alert("Unable to initialize WebGL. This Webbrowser possibly does not support it.");
+
+  if (!gl)
+  {
+    alert("Unable to initialize WebGL. This Webbrowser possibly does not support it.\nHint: See http://caniuse.com/webgl");
   }
 }
 
-//
-// initBuffers
-//
-// Initialize the buffers we'll need. 
-//
-function initBuffers() {
-  
-  // Create a buffer for the  vertices.
-  
+/**
+ * Initialize Buffers and fill them to draw a quad
+ */
+function initBuffers()
+{
   verticesBuffer = gl.createBuffer();
   
   // Select the verticesBuffer as the one to apply vertex
   // operations to from here out.
-  
   gl.bindBuffer(gl.ARRAY_BUFFER, verticesBuffer);
-  
-  // Now create an array of vertices
-  
+   
   var vertices = [
     -3.0, -3.0,  -1.5,
      3.0, -3.0,  -1.5,    
@@ -170,14 +167,9 @@ function initBuffers() {
     -3.0,  3.0,  -1.5
   ];
   
-  // Now pass the list of vertices into WebGL to build the shape. We
-  // do this by creating a Float32Array from the JavaScript array,
-  // then use it to fill the current vertex buffer.
-  
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
 
-  // Map the texture onto the face.
-  
+  // Map the video texture onto the face.  
   verticesTextureCoordBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, verticesTextureCoordBuffer);
   
@@ -188,37 +180,24 @@ function initBuffers() {
     0.0,  1.0
   ];
 
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(textureCoordinates),
-                gl.STATIC_DRAW);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(textureCoordinates), gl.STATIC_DRAW);
 
-  // Build the element array buffer; this specifies the indices
-  // into the vertex array for each face's vertices.
-  
   verticesIndexBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, verticesIndexBuffer);
   
-  // This array defines each face as two triangles, using the
-  // indices into the vertex array to specify each triangle's
-  // position.
-  
   var vertexIndices = [
-    0,  1,  2,      0,  2,  3    // front
+    0,  1,  2,
+    0,  2,  3
   ];
   
-  // Now send the element array to GL
-  
-  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,
-      new Uint16Array(vertexIndices), gl.STATIC_DRAW);
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(vertexIndices), gl.STATIC_DRAW);
 }
 
-//
-// initTextures
-//
-// Initialize the textures we'll be using, then initiate a load of
-// the texture images. The handleTextureLoaded() callback will finish
-// the job; it gets called each time a texture finishes loading.
-//
-function initTextures() {
+/**
+ * Initialize the video textures
+ */
+function initTextures()
+{
   originalTexture = gl.createTexture();
   gl.bindTexture(gl.TEXTURE_2D, originalTexture);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
@@ -243,13 +222,12 @@ function initTextures() {
   gl.bindTexture(gl.TEXTURE_2D, null);
 }
 
-//
-// updateTexture
-//
-// Update the texture to contain the latest frame from
-// our video.
-//
-function updateTexture() {
+/**
+ * Update video texture, so that the used texture contains the latest frame from the videos.
+ * UNPACK_FLIP_Y_WEBGL because HTML5 video element and WebGL video element have different orientation of y-axis
+ */
+function updateTexture()
+{
   gl.bindTexture(gl.TEXTURE_2D, originalTexture);
   gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, videoElement);
@@ -265,76 +243,62 @@ function updateTexture() {
   gl.bindTexture(gl.TEXTURE_2D, null);
 }
 
-//
-// Starts playing the video, so that it will start being used
-// as our texture.
-//
-function startVideo() {
+/**
+ * Start playing the video as soon as all 3 videos are loaded.
+ * In continuation drawing starts.
+ */
+function startVideo()
+{
   numberOfVideosLoaded++;
     
-  if (numberOfVideosLoaded===3){
+  if (numberOfVideosLoaded === 3)
+  {
     videoElement.play();
     videoNormalsElement.play();
     videoDepthElement.play();
 
     intervalID = setInterval(drawScene, 15);
-    //numberOfVideosLoaded = 0;
   }
 }
 
 // Called when the video is done playing; this will terminate
 // the animation.
 //
-function videoDone() {
-    //unreached!
-    //problem: chrome doesn't loop...
+/**
+ * Calles when the video is done playing, but should never get fired because the video should loop
+ */
+function videoDone()
+{
+    //Unreached!
+    //Problem: chrome doesn't loop, but this is still unreached!
     clearInterval(intervalID);
 }
 
-//
-// drawScene
-//
-// Draw the scene.
-//
-function drawScene() {
+/**
+ * Draw the scene
+ */
+function drawScene()
+{
   updateTexture();
-  number = number+1;
-  // Clear the canvas before we start drawing on it.
-
+  framesPerSecond++;
+  
+  //Clear canvas before drawing on it.
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   
-  // Establish the perspective with which we want to view the
-  // scene. Our field of view is 45 degrees, with a width/height
-  // ratio of 600:600, and we only want to see objects between 0.1 units
-  // and 100 units away from the camera.
-  
+  //Establish perspective.
+  //Field of view is 45 degrees, with a width/height ratio of 600:600.
+  //Only draw objects between 0.1 units and 100 units away from the camera.
   perspectiveMatrix = makePerspective(45, 600.0/600.0, 0.1, 100.0);
   
-  // Set the drawing position to the "identity" point, which is
-  // the center of the scene.
-  
   loadIdentity();
-  
-  // Now move the drawing position a bit to where we want to start drawing
-  
-  mvTranslate([0.0, 0.0, -6.0]);
-  
-  // Save the current matrix.
-  
+  mvTranslate([0.0, 0.0, -6.0]);  
   mvPushMatrix();
-  
-  // Draw by binding the array buffer to the vertices
-  // array, setting attributes, and pushing it to GL.
-  
+
   gl.bindBuffer(gl.ARRAY_BUFFER, verticesBuffer);
   gl.vertexAttribPointer(vertexPositionAttribute, 3, gl.FLOAT, false, 0, 0);
   
-  // Set the texture coordinates attribute for the vertices.
-  
   gl.bindBuffer(gl.ARRAY_BUFFER, verticesTextureCoordBuffer);
   gl.vertexAttribPointer(textureCoordAttribute, 2, gl.FLOAT, false, 0, 0);
-  
-  // Specify the texture to map onto the faces.
   
   gl.activeTexture(gl.TEXTURE0);
   gl.bindTexture(gl.TEXTURE_2D, originalTexture);
@@ -346,37 +310,29 @@ function drawScene() {
   gl.bindTexture(gl.TEXTURE_2D, depthTexture);
   gl.uniform1i(gl.getUniformLocation(shaderProgram, "uSamplerDepth"), 2);
   
-  // Draw.
-  
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, verticesIndexBuffer);
   setMatrixUniforms();
   gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
-  
-  // Restore the original matrix
-  
-  mvPopMatrix();
-  
+
+  mvPopMatrix(); 
 }
 
-//
-// initShaders
-//
-// Initialize the shaders, so WebGL knows how to light our scene.
-//
-function initShaders() {
+/**
+ * Initialize shaders that are defined in index.html;
+ * the shader uses the textures for post-processig.
+ */
+function initShaders()
+{
   var fragmentShader = getShader(gl, "shader-fs");
   var vertexShader = getShader(gl, "shader-vs");
-  
-  // Create the shader program
   
   shaderProgram = gl.createProgram();
   gl.attachShader(shaderProgram, vertexShader);
   gl.attachShader(shaderProgram, fragmentShader);
   gl.linkProgram(shaderProgram);
   
-  // If creating the shader program failed, alert
-  
-  if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
+  if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS))
+  {
     alert("Unable to initialize the shader program.");
   }
   
@@ -389,83 +345,118 @@ function initShaders() {
   gl.enableVertexAttribArray(textureCoordAttribute);
 }
 
-//
-// getShader
-//
-// Loads a shader program by scouring the current document,
-// looking for a script with the specified ID.
-//
-function getShader(gl, id) {
+/**
+ * Look for a script with the specified ID
+ * @param {WebGLRenderingContext} gl
+ * @param {string} id of element in document
+ * @returns {WebGLShader|null} shader
+ */
+function getShader(gl, id)
+{
   var shaderScript = document.getElementById(id);
   
-  // Didn't find an element with the specified ID; abort.
-  
-  if (!shaderScript) {
+  //Didn't find an element with the specified ID, so abort.
+  if (!shaderScript)
+  {
     return null;
   }
   
-  // Walk through the source element's children, building the
-  // shader source string.
-  
+  //Walk through the source element's children, building the shader source string.
   var theSource = "";
   var currentChild = shaderScript.firstChild;
-  
-  while(currentChild) {
-    if (currentChild.nodeType === 3) {
+  while(currentChild)
+  {
+    if (currentChild.nodeType === 3)
+    {
       theSource += currentChild.textContent;
     }
     
     currentChild = currentChild.nextSibling;
   }
   
-  // Now figure out what type of shader script we have,
-  // based on its MIME type.
-  
+  //Figure out the type of shader script, based on its MIME type.
+  //WebGL only supports vertex-shader and fragment-shader.
   var shader;
-  
-  if (shaderScript.type === "x-shader/x-fragment") {
+  if (shaderScript.type === "x-shader/x-fragment")
+  {
     shader = gl.createShader(gl.FRAGMENT_SHADER);
-  } else if (shaderScript.type === "x-shader/x-vertex") {
+  }
+  else if (shaderScript.type === "x-shader/x-vertex")
+  {
     shader = gl.createShader(gl.VERTEX_SHADER);
-  } else {
-    return null;  // Unknown shader type
+  }
+  else
+  {
+    //Unknown shader type
+    return null;
   }
   
-  // Send the source to the shader object
-  
   gl.shaderSource(shader, theSource);
-  
-  // Compile the shader program
-  
   gl.compileShader(shader);
-  
-  // See if it compiled successfully
-  
-  if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-    alert("An error occurred compiling the shaders: " + gl.getShaderInfoLog(shader));
+  if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS))
+  {
+    alert("An error occurred while compiling the shaders: " + gl.getShaderInfoLog(shader));
     return null;
   }
   
   return shader;
 }
 
-//
-// Matrix utility functions
-//
+/**
+ * Video playback failed, show message to user to find out why
+ * @param {Event} e
+ */
+function videoLoadFailed(e)
+{
+   switch (e.target.error.code)
+   {
+     case e.target.error.MEDIA_ERR_ABORTED:
+       alert('You aborted the video playback.');
+       break;
+     case e.target.error.MEDIA_ERR_NETWORK:
+       alert('A network error caused the video download to fail part-way.');
+       break;
+     case e.target.error.MEDIA_ERR_DECODE:
+       alert('The video playback was aborted due to a corruption problem or because the video used features your browser did not support (regarding decoding).');
+       break;
+     case e.target.error.MEDIA_ERR_SRC_NOT_SUPPORTED:
+       alert('The video could not be loaded, either because the server or network failed or because the format is not supported.\nHints: Before changing video format, try a smaller filesize. When using Chrome and loading video locally, make sure to start chrome with --disable-web-security.');
+       break;
+     default:
+       alert('An unknown error occurred.');
+       break;
+   }
+ }
 
-function loadIdentity() {
+//The following are matrix utility functions
+
+/**
+ * Load idintity for model-view-matrix
+ */
+function loadIdentity()
+{
   mvMatrix = Matrix.I(4);
 }
 
-function multMatrix(m) {
+/**
+ * Multiply matrix with matrix
+ * @param {Matrix} m
+ */
+function multMatrix(m)
+{
   mvMatrix = mvMatrix.x(m);
 }
 
-function mvTranslate(v) {
+/**
+ * @param {Array.<number>} v
+ */
+function mvTranslate(v)
+{
   multMatrix(Matrix.Translation($V([v[0], v[1], v[2]])).ensure4x4());
 }
 
-function setMatrixUniforms() {
+function setMatrixUniforms()
+{
   var pUniform = gl.getUniformLocation(shaderProgram, "uPMatrix");
   gl.uniformMatrix4fv(pUniform, false, new Float32Array(perspectiveMatrix.flatten()));
 
@@ -475,48 +466,16 @@ function setMatrixUniforms() {
 
 var mvMatrixStack = [];
 
-function mvPushMatrix(m) {
-  if (m) {
-    mvMatrixStack.push(m.dup());
-    mvMatrix = m.dup();
-  } else {
-    mvMatrixStack.push(mvMatrix.dup());
-  }
+function mvPushMatrix()
+{
+  mvMatrixStack.push(mvMatrix.dup());
 }
 
-function mvPopMatrix() {
-  if (!mvMatrixStack.length) {
+function mvPopMatrix()
+{
+  if (!mvMatrixStack.length)
+  {
     throw("Can't pop from an empty matrix stack.");
   }
-  
   mvMatrix = mvMatrixStack.pop();
-  return mvMatrix;
 }
-
-function mvRotate(angle, v) {
-  var inRadians = angle * Math.PI / 180.0;
-  
-  var m = Matrix.Rotation(inRadians, $V([v[0], v[1], v[2]])).ensure4x4();
-  multMatrix(m);
-}
-
-function videoLoadFailed(e) {
-   // video playback failed - show a message saying why
-   switch (e.target.error.code) {
-     case e.target.error.MEDIA_ERR_ABORTED:
-       alert('You aborted the video playback.');
-       break;
-     case e.target.error.MEDIA_ERR_NETWORK:
-       alert('A network error caused the video download to fail part-way.');
-       break;
-     case e.target.error.MEDIA_ERR_DECODE:
-       alert('The video playback was aborted due to a corruption problem or because the video used features your browser did not support.');
-       break;
-     case e.target.error.MEDIA_ERR_SRC_NOT_SUPPORTED:
-       alert('The video could not be loaded, either because the server or network failed or because the format is not supported.\nHints: Before changing video format, try a smaller filesize. When using Chrome and loading video locally, make sure to start it with --disable-web-security.');
-       break;
-     default:
-       alert('An unknown error occurred.');
-       break;
-   }
- }

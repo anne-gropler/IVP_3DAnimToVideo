@@ -16,7 +16,7 @@
         uniform sampler2D uSampler;
         uniform sampler2D uSamplerNormals;
         uniform sampler2D uSamplerDepth;
-        uniform mediump int uVersion;
+        uniform mediump int uLayer;
         uniform mediump float uLightPositionX;
         
         void main(void) {
@@ -35,16 +35,16 @@
           //highp vec3 vertexPosition = vec3(vVertexMV.x, vVertexMV.y, texelDepth);
           highp vec3 vertexPosition = vec3(vVertexMV.x, vVertexMV.y, texelDepth*5.0-10.0);
           
-          if (uVersion==0){ //q
+          if (uLayer==0){ //q-key
             gl_FragColor = vec4(texelColor, 1.0)*stencil;
           }
-          else if (uVersion==1){ //w
+          else if (uLayer==1){ //w-key
             gl_FragColor = vec4(texelNormal, 1.0)*stencil;
           }
-          else if (uVersion==2){ //e
+          else if (uLayer==2){ //e-key
             gl_FragColor = vec4(vec3(texelDepth), 1.0)*stencil;
           }
-          else{//r
+          else{//r-key
             highp vec3 L = normalize(vec3(uLightPositionX, 0.0, 10.0) - vertexPosition); //Light Source Position
             highp vec3 E = normalize(-vertexPosition); // we are in Eye Coordinates, so EyePos is (0,0,0)  
             highp vec3 R = normalize(reflect(-L,texelNormal));  
@@ -100,6 +100,7 @@
       Your browser doesn't appear to support the HTML5 <code>&lt;video&gt;</code> element.
     </video>
     <input id="slideX" type="range" min="-70" max="70" step="1" value="0">
-    <div id="sliderAmount"></div>
+    <div>Hit 'q' for color layer, 'w' for normals layer, 'e' for depth layer and 'r' for shading using those layers.
+    Use this slider to adjust the x-position of the light used for shading.</div>
   </body>
 </html>
