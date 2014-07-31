@@ -1,27 +1,20 @@
-var canvas;
 var gl;
-var intervalID;
-
-var framesPerSecond;
 
 var verticesBuffer;
 var verticesTextureCoordBuffer;
 var verticesIndexBuffer;
-
-var numberOfVideosLoaded;
-var originalTexture;
-var normalsTexture;
-var depthTexture;
-
-var lightPositionX;
-
-var layer;
 
 var mvMatrix;
 var shaderProgram;
 var vertexPositionAttribute;
 var textureCoordAttribute;
 var perspectiveMatrix;
+
+var numberOfVideosLoaded;
+var framesPerSecond;
+var colorTexture;
+var normalsTexture;
+var depthTexture;
 
 var videoElement;
 var videoNormalsElement;
@@ -36,13 +29,13 @@ function start()
   framesPerSecond = 0;
   numberOfVideosLoaded = 0;
     
-  canvas = document.getElementById("glcanvas");
+  var canvas = document.getElementById("glcanvas");
   
   //Slider to update the x-position of the light
   var slideX = document.getElementById('slideX');  
   slideX.onchange = function()
   {
-        lightPositionX = this.value;
+        var lightPositionX = this.value;
         gl.uniform1f(gl.getUniformLocation(shaderProgram, "uLightPositionX"), lightPositionX);
   };
   
@@ -52,7 +45,7 @@ function start()
   videoDepthElement = document.getElementById("videoDepth");
 
   //Initialize the GL context and set the variable gl
-  initWebGL();
+  initWebGL(canvas);
   
   if (gl)
   {
@@ -95,7 +88,7 @@ function start()
     videoDepthElement.crossOrigin = "anonymous";
     
     //Which layer of the video is shown
-    layer = 0;
+    var layer = 0;
     
     window.onkeyup = function(e)
     {
@@ -130,8 +123,9 @@ function start()
 
 /** Initialize WebGL, setting gl as the GL context
  * or null if WebGL isn't available or could not be initialized.
+ * @param {HTMLCanvasElement} canvas
  */
-function initWebGL()
+function initWebGL(canvas)
 {
   gl = null;
   
@@ -198,8 +192,8 @@ function initBuffers()
  */
 function initTextures()
 {
-  originalTexture = gl.createTexture();
-  gl.bindTexture(gl.TEXTURE_2D, originalTexture);
+  colorTexture = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, colorTexture);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
@@ -228,7 +222,7 @@ function initTextures()
  */
 function updateTexture()
 {
-  gl.bindTexture(gl.TEXTURE_2D, originalTexture);
+  gl.bindTexture(gl.TEXTURE_2D, colorTexture);
   gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, videoElement);
   
@@ -257,21 +251,17 @@ function startVideo()
     videoNormalsElement.play();
     videoDepthElement.play();
 
-    intervalID = setInterval(drawScene, 15);
+    setInterval(drawScene, 15);
   }
 }
 
-// Called when the video is done playing; this will terminate
-// the animation.
-//
 /**
- * Calles when the video is done playing, but should never get fired because the video should loop
+ * Called when the video is done playing, but should never get fired because the video should loop
  */
 function videoDone()
 {
     //Unreached!
     //Problem: chrome doesn't loop, but this is still unreached!
-    clearInterval(intervalID);
 }
 
 /**
@@ -301,7 +291,7 @@ function drawScene()
   gl.vertexAttribPointer(textureCoordAttribute, 2, gl.FLOAT, false, 0, 0);
   
   gl.activeTexture(gl.TEXTURE0);
-  gl.bindTexture(gl.TEXTURE_2D, originalTexture);
+  gl.bindTexture(gl.TEXTURE_2D, colorTexture);
   gl.uniform1i(gl.getUniformLocation(shaderProgram, "uSampler"), 0);
   gl.activeTexture(gl.TEXTURE1);
   gl.bindTexture(gl.TEXTURE_2D, normalsTexture);
