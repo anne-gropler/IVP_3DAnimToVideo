@@ -78,13 +78,13 @@ function start()
     //Video sources are loaded when the page loads
     //CrossOrigin anonymous so that we can open index.html without netbeans
     video.preload = "auto";
-    videoElement.src = "presentation_color_small.ogv";
+    videoElement.src = "modelPresentationColor.ogv";
     videoElement.crossOrigin = "anonymous";
     videoNormals.preload = "auto";
-    videoNormalsElement.src = "presentation_normals_small.ogv";
+    videoNormalsElement.src = "modelPresentationNormals.ogv";
     videoNormalsElement.crossOrigin = "anonymous";
     videoDepth.preload = "auto";
-    videoDepthElement.src = "presentation_depth_small.ogv";
+    videoDepthElement.src = "modelPresentationDepth.ogv";
     videoDepthElement.crossOrigin = "anonymous";
     
     //Which layer of the video is shown
